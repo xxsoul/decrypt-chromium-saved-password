@@ -37,6 +37,10 @@ func main() {
 	logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
 	showSavedPass(broPaths[0]+DEFAULT_LOGIN_DATA, encKey, 5)
 	logger.Println("Chrome浏览器数据处理完毕")
+	logger.Print("按任意键继续...")
+	// fmt.Scan()
+	var ignore string
+	fmt.Scan(&ignore)
 }
 
 // loadEncKey 加载加密密钥
@@ -130,6 +134,7 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 	logger.Println("清理临时文件完毕")
 }
 
+// aesGcmDecrypt GCM解密数据
 func aesGcmDecrypt(aesKey, aesIv, cipherData []byte) []byte {
 	blocker, err := aes.NewCipher(aesKey)
 	if err != nil {
