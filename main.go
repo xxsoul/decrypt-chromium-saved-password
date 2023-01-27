@@ -37,10 +37,9 @@ func main() {
 	logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
 	showSavedPass(broPaths[0]+DEFAULT_LOGIN_DATA, encKey, 5)
 	logger.Println("Chrome浏览器数据处理完毕")
-	logger.Print("按任意键继续...")
-	// fmt.Scan()
-	var ignore string
-	fmt.Scan(&ignore)
+	logger.Println("按回车键退出")
+	b := make([]byte, 1)
+	os.Stdin.Read(b)
 }
 
 // loadEncKey 加载加密密钥
@@ -105,7 +104,6 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 	if dbErr != nil {
 		logger.Fatalln("查询用户数据错误:" + dbErr.Error())
 	}
-	defer rows.Close()
 
 	logger.Println("开始提取数据...")
 	i := 0
@@ -129,6 +127,8 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 			logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:%s****%s\n", i, url, uname, pswStr[:4], pswStr[len(pswStr)-4:])
 		}
 	}
+	rows.Close()
+	db.Close()
 	logger.Println("提取数据完毕，清理临时文件...")
 	os.Remove("tmp.db")
 	logger.Println("清理临时文件完毕")
