@@ -10,6 +10,8 @@ import (
 	"io"
 	"log"
 	"os"
+
+	"github.com/howeyc/gopass"
 )
 
 const (
@@ -21,8 +23,23 @@ var (
 	logger = log.Default()
 )
 
-func main() {
+func init() {
 	logger.SetFlags(log.Lmicroseconds)
+}
+
+func main() {
+	logger.Println("请输入启动密码：")
+	pass := false
+	for !pass {
+		if cliPsw, err := gopass.GetPasswdMasked(); err != nil {
+			logger.Println("获取密码错误")
+			waitAnyKeyAndQuite()
+		} else if string(cliPsw) != "" {
+			logger.Println("密码错误，请重试：")
+		} else {
+			pass = true
+		}
+	}
 
 	logger.Println("开始探测Chromium内核浏览器...")
 	browsers := ScanBrowser()
@@ -40,7 +57,11 @@ func main() {
 		encKeyHex := hex.EncodeToString(encKey)
 		logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
 		showSavedPass(bro.userPath+DEFAULT_LOGIN_DATA, encKey, 5)
-		logger.Printf("%s浏览器数据处理完毕", bro.name)
+		if k+1 == len(browsers) {
+			logger.Printf("%s浏览器数据处理完毕\n", bro.name)
+		} else {
+			logger.Printf("%s浏览器数据处理完毕\n\n", bro.name)
+		}
 	}
 
 	waitAnyKeyAndQuite()
@@ -120,7 +141,7 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 		waitAnyKeyAndQuite()
 	}
 
-	logger.Println("开始提取数据...")
+	logger.Println("开始提取数据...\n")
 	i := 0
 	for _, item := range dbData {
 		if i >= count {
@@ -136,11 +157,13 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 		cipData := item.psw[15:]
 		plaData := aesGcmDecrypt(encKey, iv, cipData)
 		pswStr := string(plaData)
-		if len(pswStr) < 5 {
-			logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:**%s**\n", i, item.url, item.uname, pswStr)
-		} else {
-			logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:%s****%s\n", i, item.url, item.uname, pswStr[:4], pswStr[len(pswStr)-4:])
-		}
+		logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:%s\n\n", i, item.url, item.uname, pswStr)
+
+		// if len(pswStr) < 5 {
+		// 	logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:**%s**\n", i, item.url, item.uname, pswStr)
+		// } else {
+		// 	logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:%s****%s\n", i, item.url, item.uname, pswStr[:4], pswStr[len(pswStr)-4:])
+		// }
 	}
 	logger.Println("提取数据完毕，清理临时文件...")
 	os.Remove("tmp.db")
