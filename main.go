@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -11,8 +10,6 @@ import (
 	"io"
 	"log"
 	"os"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -25,21 +22,38 @@ var (
 )
 
 func main() {
-	logger.Println("开始探测Chrome浏览器...")
-	broPaths := ScanBrowser()
-	if len(broPaths) < 1 {
-		logger.Println("未探测到Chrome浏览器，退出")
+	logger.SetFlags(log.Lmicroseconds)
+
+	logger.Println("开始探测Chromium内核浏览器...")
+	browsers := ScanBrowser()
+	if len(browsers) < 1 {
+		logger.Println("未探测到Chromium内核浏览器，退出")
+		waitAnyKeyAndQuite()
 		return
 	}
-	logger.Println("探测到Chrome浏览器，解密数据密钥...")
-	encKey := loadEncKey(broPaths[0])
-	encKeyHex := hex.EncodeToString(encKey)
-	logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
-	showSavedPass(broPaths[0]+DEFAULT_LOGIN_DATA, encKey, 5)
-	logger.Println("Chrome浏览器数据处理完毕")
-	logger.Println("按回车键退出")
-	b := make([]byte, 1)
-	os.Stdin.Read(b)
+	for k, bro := range browsers {
+		if k > 0 {
+			logger.Println("------------------")
+		}
+		logger.Printf("探测到%s浏览器，解密数据密钥...\n", bro.name)
+		encKey := loadEncKey(bro.userPath)
+		encKeyHex := hex.EncodeToString(encKey)
+		logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
+		showSavedPass(bro.userPath+DEFAULT_LOGIN_DATA, encKey, 5)
+		logger.Printf("%s浏览器数据处理完毕", bro.name)
+	}
+
+	waitAnyKeyAndQuite()
+}
+
+func waitAnyKeyAndQuite() {
+	var ignore byte
+	logger.Print("按任意键退出...")
+	fmt.Scanf("%c", &ignore)
+	// logger.Print("按任意键退出...")
+	// b := make([]byte, 1)
+	// os.Stdin.Read(b)
+	os.Exit(1)
 }
 
 // loadEncKey 加载加密密钥
@@ -55,19 +69,22 @@ func loadEncKey(path string) []byte {
 		} `json:"os_crypt"`
 	}{}
 	if err = json.Unmarshal(lsBytes, &localStateObj); err != nil {
-		logger.Fatalf("decode json data error:%v", err)
+		logger.Printf("decode json data error:%v", err)
+		waitAnyKeyAndQuite()
 	}
 
 	keyCipByte, err := base64.StdEncoding.DecodeString(localStateObj.OsCrypt.EncKey)
 	if err != nil {
-		logger.Fatalf("decode base64 data error:%v", err)
+		logger.Printf("decode base64 data error:%v", err)
+		waitAnyKeyAndQuite()
 	}
 	keyCipByte = keyCipByte[5:] // 去掉头部
 
 	// 解密密钥
 	keyPlaByte, err := Win32Decrypt(keyCipByte)
 	if err != nil {
-		logger.Fatalf("encryption key data decrypt error:%v", err)
+		logger.Printf("encryption key data decrypt error:%v", err)
+		waitAnyKeyAndQuite()
 	}
 	return keyPlaByte
 }
@@ -77,58 +94,54 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 	logger.Println("加载用户数据库...")
 	fTmp, err := os.OpenFile("tmp.db", os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
-		logger.Fatalln("创建临时文件错误")
+		logger.Println("创建临时文件错误")
+		waitAnyKeyAndQuite()
 	}
 
 	fDb, err := os.OpenFile(dbPath, os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		fTmp.Close()
-		logger.Fatalln("读取用户数据库错误:" + err.Error())
+		logger.Println("读取用户数据库错误:" + err.Error())
+		waitAnyKeyAndQuite()
 	}
 
 	if _, err = io.Copy(fTmp, fDb); err != nil {
 		fDb.Close()
 		fTmp.Close()
-		logger.Fatalln("加载用户数据库错误:" + err.Error())
+		logger.Println("加载用户数据库错误:" + err.Error())
+		waitAnyKeyAndQuite()
 	}
 	fDb.Close()
 	fTmp.Close()
+	logger.Printf("加载用户数据库完毕")
 
-	logger.Println("开始读取用户数据库...")
-	db, dbErr := sql.Open("sqlite3", "./tmp.db")
-	if dbErr != nil {
-		logger.Fatalln("读取用户数据库（2）错误:" + dbErr.Error())
-	}
-
-	rows, dbErr := db.Query(fmt.Sprintf("SELECT action_url, username_value, password_value FROM logins LIMIT %d", count*5))
-	if dbErr != nil {
-		logger.Fatalln("查询用户数据错误:" + dbErr.Error())
+	dbData := fetchDataFromDb("./tmp.db", count*5)
+	if dbData == nil {
+		waitAnyKeyAndQuite()
 	}
 
 	logger.Println("开始提取数据...")
 	i := 0
-	url, uname, psw := "", "", []byte{}
-	for rows.Next() && i < count {
-		url, uname, psw = "", "", []byte{}
-		rows.Scan(&url, &uname, &psw)
-		if (len(url) * len(uname) * len(psw)) == 0 {
+	for _, item := range dbData {
+		if i >= count {
+			break
+		}
+		if (len(item.psw) * len(item.uname) * len(item.url)) == 0 {
 			continue
 		}
 		i++
 
 		// 解密密码
-		iv := psw[3:15]
-		cipData := psw[15:]
+		iv := item.psw[3:15]
+		cipData := item.psw[15:]
 		plaData := aesGcmDecrypt(encKey, iv, cipData)
 		pswStr := string(plaData)
 		if len(pswStr) < 5 {
-			logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:**%s**\n", i, url, uname, pswStr)
+			logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:**%s**\n", i, item.url, item.uname, pswStr)
 		} else {
-			logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:%s****%s\n", i, url, uname, pswStr[:4], pswStr[len(pswStr)-4:])
+			logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:%s****%s\n", i, item.url, item.uname, pswStr[:4], pswStr[len(pswStr)-4:])
 		}
 	}
-	rows.Close()
-	db.Close()
 	logger.Println("提取数据完毕，清理临时文件...")
 	os.Remove("tmp.db")
 	logger.Println("清理临时文件完毕")

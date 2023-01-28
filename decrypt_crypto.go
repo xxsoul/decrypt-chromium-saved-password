@@ -21,7 +21,7 @@ var (
 
 // Win32Encrypt 使用win32的加密方法
 func Win32Encrypt(data []byte) ([]byte, error) {
-	var res data_blob
+	var res dataBlob
 	r, _, err := procEncryptData.Call(uintptr(unsafe.Pointer(newBlob(data))), 0, 0, 0, 0, CRYPTPROTECT_UI_FORBIDDEN, uintptr(unsafe.Pointer(&res)))
 	if r == 0 {
 		return nil, err
@@ -32,7 +32,7 @@ func Win32Encrypt(data []byte) ([]byte, error) {
 
 // Win32Decrypt 使用win32的解密方法
 func Win32Decrypt(data []byte) ([]byte, error) {
-	var res data_blob
+	var res dataBlob
 	r, _, err := procDecryptData.Call(uintptr(unsafe.Pointer(newBlob(data))), 0, 0, 0, 0, CRYPTPROTECT_UI_FORBIDDEN, uintptr(unsafe.Pointer(&res)))
 	if r == 0 {
 		return nil, err
@@ -41,25 +41,25 @@ func Win32Decrypt(data []byte) ([]byte, error) {
 	return res.toByteArr(), nil
 }
 
-// data_blob win32 api要求的数据结构
-type data_blob struct {
+// dataBlob win32 api要求的数据结构
+type dataBlob struct {
 	cbData uint32
 	pbData *byte
 }
 
 // 创建一个新的数据组
-func newBlob(d []byte) *data_blob {
+func newBlob(d []byte) *dataBlob {
 	if d == nil || len(d) < 1 {
-		return &data_blob{}
+		return &dataBlob{}
 	}
 
-	return &data_blob{
+	return &dataBlob{
 		cbData: uint32(len(d)),
 		pbData: &d[0],
 	}
 }
 
-func (data *data_blob) toByteArr() []byte {
+func (data *dataBlob) toByteArr() []byte {
 	res := make([]byte, data.cbData)
 	copy(res, (*[1 << 15]byte)(unsafe.Pointer(data.pbData))[:])
 	return res
