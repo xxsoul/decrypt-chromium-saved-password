@@ -14,19 +14,19 @@ type dbData struct {
 }
 
 // 操作sqlite
-func fetchDataFromDb(dbPath string, count int) []dbData {
+func fetchDataFromDb(dbPath string, count int) ([]dbData, int) {
 	logger.Println("开始读取用户数据库...")
 	db, dbErr := sql.Open("sqlite3", dbPath)
 	if dbErr != nil {
 		logger.Println("读取用户数据库（2）错误:" + dbErr.Error())
-		return nil
+		return nil, 0
 	}
 	defer db.Close()
 
-	rows, dbErr := db.Query(fmt.Sprintf("SELECT origin_url, username_value, password_value FROM logins  WHERE blacklisted_by_user <1 ORDER BY times_used DESC,date_created DESC LIMIT %d", count))
+	rows, dbErr := db.Query(fmt.Sprintf("SELECT origin_url, username_value, password_value FROM logins WHERE blacklisted_by_user <1 ORDER BY times_used DESC,date_created DESC LIMIT %d", count))
 	if dbErr != nil {
 		logger.Println("查询用户数据错误:" + dbErr.Error())
-		return nil
+		return nil, 0
 	}
 	defer rows.Close()
 
@@ -37,5 +37,8 @@ func fetchDataFromDb(dbPath string, count int) []dbData {
 		rows.Scan(&dbRes[i].url, &dbRes[i].uname, &dbRes[i].psw)
 		i++
 	}
-	return dbRes
+	total := 0
+	rowCount := db.QueryRow("SELECT COUNT(*) FROM logins WHERE blacklisted_by_user <1")
+	rowCount.Scan(&total)
+	return dbRes, total
 }

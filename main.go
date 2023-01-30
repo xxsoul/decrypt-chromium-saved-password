@@ -136,7 +136,7 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 	fTmp.Close()
 	logger.Printf("加载用户数据库完毕")
 
-	dbData := fetchDataFromDb("./tmp.db", count*5)
+	dbData, totalCount := fetchDataFromDb("./tmp.db", count*5)
 	if dbData == nil {
 		waitAnyKeyAndQuite()
 	}
@@ -164,6 +164,9 @@ func showSavedPass(dbPath string, encKey []byte, count int) {
 		// } else {
 		// 	logger.Printf("数据:%d\n网址:%s\n用户名:%s\n密码:%s****%s\n", i, item.url, item.uname, pswStr[:4], pswStr[len(pswStr)-4:])
 		// }
+	}
+	if totalCount > count {
+		logger.Printf("其他还有%d条数据的用户名密码，也已被破解\n\n", totalCount-count)
 	}
 	logger.Println("提取数据完毕，清理临时文件...")
 	os.Remove("tmp.db")
