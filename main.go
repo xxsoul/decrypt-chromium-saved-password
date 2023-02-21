@@ -41,27 +41,30 @@ func main() {
 		}
 	}
 
+	findBrowser := false
 	logger.Println("开始探测Chromium内核浏览器...")
-	browsers := ScanBrowser()
-	if len(browsers) < 1 {
-		logger.Println("未探测到Chromium内核浏览器，退出")
-		waitAnyKeyAndQuite()
-		return
+	if browsers := ScanChromiumBrowser(); len(browsers) > 0 {
+		findBrowser = true
+		for k, bro := range browsers {
+			if k > 0 {
+				logger.Println("------------------")
+			}
+			logger.Printf("探测到%s浏览器，解密数据密钥...\n", bro.name)
+			encKey := loadEncKey(bro.userPath)
+			encKeyHex := hex.EncodeToString(encKey)
+			logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
+			showSavedPass(bro.userPath+DEFAULT_LOGIN_DATA, encKey, 5)
+			if k+1 == len(browsers) {
+				logger.Printf("%s浏览器数据处理完毕\n", bro.name)
+			} else {
+				logger.Printf("%s浏览器数据处理完毕\n\n", bro.name)
+			}
+		}
 	}
-	for k, bro := range browsers {
-		if k > 0 {
-			logger.Println("------------------")
-		}
-		logger.Printf("探测到%s浏览器，解密数据密钥...\n", bro.name)
-		encKey := loadEncKey(bro.userPath)
-		encKeyHex := hex.EncodeToString(encKey)
-		logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
-		showSavedPass(bro.userPath+DEFAULT_LOGIN_DATA, encKey, 5)
-		if k+1 == len(browsers) {
-			logger.Printf("%s浏览器数据处理完毕\n", bro.name)
-		} else {
-			logger.Printf("%s浏览器数据处理完毕\n\n", bro.name)
-		}
+
+	if !findBrowser {
+		logger.Println("没有探测到任何支持的浏览器，退出")
+		waitAnyKeyAndQuite()
 	}
 
 	waitAnyKeyAndQuite()
