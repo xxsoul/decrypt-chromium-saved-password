@@ -7,6 +7,9 @@ import "os"
 const (
 	DEFAULT_CHROME_USER_DATA_PATH = `\AppData\Local\Google\Chrome\User Data\`  // 默认的Chrome用户目录
 	DEFAULT_EDGE_USER_DATA_PATH   = `\AppData\Local\Microsoft\Edge\User Data\` // 默认的Edge用户目录
+
+	DEFAULT_CHROMIUM_LOGIN_DATA   = `Default\Login Data`
+	DEFAULT_CHROMIUM_HISTORY_DATA = `Default\History`
 )
 
 var (
@@ -34,6 +37,9 @@ var (
 type browserInfo struct {
 	name     string // 浏览器名称
 	userPath string // 浏览器路径
+
+	passwordPath string // 保存的密码路径
+	historyPath  string // 保存的浏览记录路径
 }
 
 // ScanBrowser 扫描浏览器
@@ -56,13 +62,29 @@ func ScanChromiumBrowser() []browserInfo {
 	homePath := os.Getenv("USERPROFILE")
 	for name, broPath := range chromiumBrowPathMap {
 		path := homePath + broPath
-		if fp, fErr := os.Open(path); fErr == nil {
+		if fp, fErr := os.Open(path); fErr != nil {
 			fp.Close()
-			browList = append(browList, browserInfo{
-				name:     name,
-				userPath: path,
-			})
+			continue
+		} else {
+			fp.Close()
 		}
+
+		bi := browserInfo{
+			name:         name,
+			userPath:     path,
+			passwordPath: path + DEFAULT_CHROMIUM_LOGIN_DATA,
+			historyPath:  path + DEFAULT_CHROMIUM_HISTORY_DATA,
+		}
+
+		switch bi.name {
+		case "Yandex":
+			{
+				bi.passwordPath = path + "Default\\Ya Passman Data"
+			}
+		}
+
+		browList = append(browList, bi)
+
 	}
 	return browList
 }
@@ -75,8 +97,10 @@ func ScanFirefoxBrowser() []browserInfo {
 		if fp, fErr := os.Open(path); fErr == nil {
 			fp.Close()
 			browList = append(browList, browserInfo{
-				name:     name,
-				userPath: path,
+				name:         name,
+				userPath:     path,
+				passwordPath: path + "logins.json",
+				historyPath:  path + "places.sqlite",
 			})
 		}
 	}

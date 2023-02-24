@@ -16,7 +16,6 @@ import (
 
 const (
 	DEFAULT_LOCAL_STATE = `Local State`
-	DEFAULT_LOGIN_DATA  = `Default\Login Data`
 )
 
 var (
@@ -53,7 +52,7 @@ func main() {
 			encKey := loadEncKey(bro.userPath)
 			encKeyHex := hex.EncodeToString(encKey)
 			logger.Printf("解密数据密钥完毕，密钥：%s********%s\n", encKeyHex[:8], encKeyHex[len(encKeyHex)-8:])
-			showSavedPass(bro.userPath+DEFAULT_LOGIN_DATA, encKey, 5)
+			showSavedPass(bro.userPath+DEFAULT_CHROMIUM_LOGIN_DATA, encKey, 5)
 			if k+1 == len(browsers) {
 				logger.Printf("%s浏览器数据处理完毕\n", bro.name)
 			} else {
