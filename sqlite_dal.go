@@ -63,7 +63,7 @@ func fetchChromiumHistoryDataFromDb(dbPath string, count int) ([]dbData, int) {
 	dbRes := make([]dbData, count)
 	i := 0
 	for rows.Next() && i < count {
-		rows.Scan(&dbRes[i].url, &dbRes[i].uname, new(any), new(any))
+		rows.Scan(&dbRes[i].url, &dbRes[i].uname, new(sql.RawBytes), new(sql.RawBytes))
 		i++
 	}
 	total := 0
